@@ -56,7 +56,7 @@ public class SpawnerBlocks : MonoBehaviour
         for (int i = 0; i < count_c; i++)
         {
             float angle = i * Mathf.PI * 2 / count_c;   // radian
-            angle = (angle + 180) % 360;
+            angle = (angle + 180) % 360;                // for CameraDirections::UpdateFollowBlocks(), no necessary now
             // polar --> cartesian
             float x = Mathf.Cos(angle) * r;
             float z = Mathf.Sin(angle) * r;
