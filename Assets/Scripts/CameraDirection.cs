@@ -13,21 +13,21 @@ public class CameraDirector : MonoBehaviour
 
     [Header("Target")]
     public Transform ball;
-    public Transform blocksParent;     // from Spawner
+    public Transform blocksParent;     // Spawner
 
-    [Header("阶段一：跟随小球")]
-    public Vector3 look_offset_ball = new Vector3(0, 5, -10); // 相机在小球后上方的偏移
-    public float ballSmoothTime = 0.3f;                 // 跟随小球的平滑时间
+    [Header("cam stage I: follow ball")]
+    public Vector3 look_offset_ball = new Vector3(0, 5, -10);   // Camera locates at back-above the ball
+    public float ballSmoothTime = 0.3f;
 
-    [Header("阶段二：沿轨迹移动")]
+    [Header("cam stage II: follow blocks")]
     public Vector3 look_offset_blocks = new Vector3(0, 2f, 0); 
-    public float blockMoveSpeed = 5f;                   // 相机沿轨迹移动的速度
-    public float blockSmoothTime = 0.5f;                // 沿轨迹移动的平滑时间
-    public float blockHeight = 8f;                      // 相机看着方块的悬挂高度
+    public float blockMoveSpeed = 5f;                           // move speed of camera
+    public float blockSmoothTime = 0.5f;
+    public float blockHeight = 8f;                              // hight of camera (while following blocks)
 
     private CameraState currentState = CameraState.FOLLOW_BALL;
-    private Vector3 velocity = Vector3.zero;            // 供 SmoothDamp 使用的速度缓存
-    private List<Transform> blockList = new List<Transform>();
+    private Vector3 velocity = Vector3.zero;                    // for SmoothDamp
+    private List<Transform> blockList = new List<Transform>();  // can be removed
     private List<Rigidbody> blockRbs = new List<Rigidbody>();
     private int currentBlockIndex = 0;
 
@@ -59,7 +59,7 @@ public class CameraDirector : MonoBehaviour
     {
         if (ball == null) return;
 
-        // 调试用：按空格键手动切换状态
+        // for test
         if (Keyboard.current.spaceKey.wasPressedThisFrame) 
         {
             SwitchCamMode();
@@ -83,34 +83,26 @@ public class CameraDirector : MonoBehaviour
     private void UpdateFollowBall()
     {
         Vector3 desiredPosition = ball.position + look_offset_ball;
-        
-        // 平滑移动位置
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, ballSmoothTime);
-        
-        // 平滑旋转朝向小球
         Quaternion targetRotation = Quaternion.LookRotation(ball.position - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
     }
 
+    // This function has been deprecated, bad performance, might remove later
     private void UpdateFollowBlocks()
     {
         if (blockList.Count == 0) return;
-
         // 获取当前目标方块的位置
         Transform targetBlock = blockList[currentBlockIndex];
         Debug.Log($"FollowBlocks: currentBlockIndex = {currentBlockIndex}");
-        
         // 相机保持在目标方块的正上方偏后一点
         Vector3 desiredPosition = targetBlock.position + new Vector3(0, blockHeight, -10);
-
         // 平滑移动
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, blockSmoothTime);
-        
         // 相机看向前方的方块（避免只看脚底）
         Vector3 lookTarget = targetBlock.position;
         Quaternion targetRotation = Quaternion.LookRotation(lookTarget - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
-
         // 判断是否移动到了当前目标方块附近，如果是，则切换到下一个方块
         if (Vector3.Distance(transform.position, desiredPosition) < 2f)
         {
@@ -128,11 +120,10 @@ public class CameraDirector : MonoBehaviour
         Vector3 focusPoint = Vector3.zero;
         int activeBlockCount = 0;
 
-        // 遍历所有方块，找出那些正在“动”的方块（即已经倒下的方块）
+        // find blocks which moving heavily
         foreach (var rb in blockRbs)
         {
-            if(rb.position.x < 0)
-                // 如果方块的速度大于极小值，或者它的倾斜角度很大
+            if(rb.position.x < 0)   // only follow one side of circle
                 if (rb.linearVelocity.sqrMagnitude > 0.1f || rb.angularVelocity.sqrMagnitude > 0.1f)
                 {
                     focusPoint += rb.position;
@@ -140,23 +131,21 @@ public class CameraDirector : MonoBehaviour
                 }
         }
 
-        // 如果没有任何方块在动（说明还没倒，或者全倒了），就让相机原地等待或保持最后位置
         if (activeBlockCount == 0)
         {
-            // 可选：如果没有方块在动，让相机慢慢看向小球，或者什么都不做
+            // camera keep staying in the final position
             return;
         }
 
-        // 计算当前所有正在倒下的方块的中心点
         focusPoint /= activeBlockCount;
-
-        // 期望相机位置：方块中心点的正上方偏后
-        Vector3 desiredPosition = focusPoint + new Vector3(0, blockHeight, -10);
         
-        // 平滑移动相机
+        // todo:
+        // think focusPoint is better calculated by the last n active blocks
+        // manage using queues
+
+        Vector3 desiredPosition = focusPoint + new Vector3(0, blockHeight, -10);
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, blockSmoothTime);
 
-        // 让相机看向这个重心点（加上一点高度偏移）
         Quaternion targetRotation = Quaternion.LookRotation(focusPoint + look_offset_blocks - transform.position);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
     }
@@ -167,7 +156,7 @@ public class CameraDirector : MonoBehaviour
         {
             currentState = CameraState.FOLLOW_BLOCKS;
             // currentBlockIndex = 0; // 从头开始走
-            // velocity = Vector3.zero; // 重置平滑速度，防止惯性导致镜头猛冲
+            // velocity = Vector3.zero;
             UpdateFollowBlocksDynamically();
             Debug.Log("cam switch to FOLLOW_BLOCKS");
         }
@@ -184,7 +173,7 @@ public class CameraDirector : MonoBehaviour
         if (currentState == CameraState.FOLLOW_BALL)
         {
             currentState = CameraState.FOLLOW_BLOCKS;
-            velocity = Vector3.zero; // 重置平滑速度
+            velocity = Vector3.zero;    // reset, prevent inertia causing
             Debug.Log("do StartFollowingBlocks()");
         }
     }

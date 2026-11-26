@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// no use, and didn't finish & test yet
 public class CameraFollow : MonoBehaviour
 {
     [Header("Target")]
