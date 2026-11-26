@@ -44,6 +44,19 @@
 
 # Visual Studio cache directory
 .vs/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
 
 # Gradle cache directory
 .gradle/
